@@ -15,6 +15,7 @@ import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedDeviceRouteImport } from './routes/_authed/device'
 import { Route as AuthedUploadRouteImport } from './routes/_authed/upload'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiMeRouteImport } from './routes/api/me'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as AuthedAppsAppKeyRouteImport } from './routes/_authed/apps/$appKey'
 import { Route as ApiDeviceEnrollRouteImport } from './routes/api/device.enroll'
@@ -49,6 +50,11 @@ const AuthedUploadRoute = AuthedUploadRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeRoute = ApiMeRouteImport.update({
+  id: '/api/me',
+  path: '/api/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUploadRoute = ApiUploadRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/device': typeof AuthedDeviceRoute
   '/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/me': typeof ApiMeRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
   '/apps/$appKey': typeof AuthedAppsAppKeyRoute
   '/api/device/enroll': typeof ApiDeviceEnrollRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/device': typeof AuthedDeviceRoute
   '/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/me': typeof ApiMeRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
   '/': typeof AuthedIndexRoute
   '/apps/$appKey': typeof AuthedAppsAppKeyRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/_authed/device': typeof AuthedDeviceRoute
   '/_authed/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/me': typeof ApiMeRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/apps/$appKey': typeof AuthedAppsAppKeyRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/device'
     | '/upload'
     | '/api/health'
+    | '/api/me'
     | '/api/upload'
     | '/apps/$appKey'
     | '/api/device/enroll'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/device'
     | '/upload'
     | '/api/health'
+    | '/api/me'
     | '/api/upload'
     | '/'
     | '/apps/$appKey'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/_authed/device'
     | '/_authed/upload'
     | '/api/health'
+    | '/api/me'
     | '/api/upload'
     | '/_authed/'
     | '/_authed/apps/$appKey'
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiMeRoute: typeof ApiMeRoute
   ApiUploadRoute: typeof ApiUploadRouteWithChildren
   ApiDeviceEnrollRoute: typeof ApiDeviceEnrollRoute
   ApiDeviceProfileRoute: typeof ApiDeviceProfileRoute
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me': {
+      id: '/api/me'
+      path: '/api/me'
+      fullPath: '/api/me'
+      preLoaderRoute: typeof ApiMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/upload': {
@@ -298,6 +318,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiMeRoute: ApiMeRoute,
   ApiUploadRoute: ApiUploadRouteWithChildren,
   ApiDeviceEnrollRoute: ApiDeviceEnrollRoute,
   ApiDeviceProfileRoute: ApiDeviceProfileRoute,

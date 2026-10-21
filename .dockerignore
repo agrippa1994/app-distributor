@@ -11,3 +11,5 @@ docs
 .env*
 Dockerfile
 .dockerignore
+cli
+dist

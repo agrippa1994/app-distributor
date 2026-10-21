@@ -3,7 +3,7 @@
 # app-distributor
 
 Self-hosted over-the-air distribution for your own iOS (`.ipa`) and Android
-(`.apk`) builds. Upload with `curl`, open the site on your phone, tap
+(`.apk`) builds. Upload with the `appdist` CLI or `curl`, open the site on your phone, tap
 **Install**. Every upload is kept as a version so you can roll back to any
 earlier build.
 
@@ -44,11 +44,34 @@ Preparing an Expo app for this workflow: **[docs/expo-workflow.md](docs/expo-wor
 | `PUT`/`POST` | `/api/upload`                                            | Basic or session | Raw body (`curl -T file`) or multipart field `file`. Notes via `?notes=`, `X-Notes` header or form field `notes`. |
 | `GET`        | `/api/dl/<token>/manifest.plist` · `app.ipa` · `app.apk` | signed token     | Used by the install buttons. Supports `Range`.                                                                    |
 | `GET`        | `/api/device/profile`                                    | session          | UDID enrollment profile (iOS).                                                                                    |
+| `GET`        | `/api/me`                                                | Basic or session | Returns `{ "user": ... }`; used to check credentials.                                                             |
 | `GET`        | `/api/health`                                            | –                | Health check.                                                                                                     |
 
 ```sh
 curl -fu me -T build.ipa https://apps.example.com/api/upload
 ```
+
+## CLI
+
+`cli/appdist.ts` wraps the upload API (streams the file, shows progress, no
+dependencies). Runs on Bun or Node ≥ 23.6.
+
+```sh
+bun link                                  # puts `appdist` on your PATH (from this repo)
+# or: bun run build:cli                   # standalone binary at dist/appdist
+
+appdist init                              # prompts for server URL, username, password
+appdist upload build.ipa -n "Fix login"   # prints the app page URL
+appdist upload app.apk --json             # full server response
+```
+
+`init` verifies the credentials against `/api/me` and stores them in
+`~/.config/app-distributor/config.json` (mode `0600`; respects
+`XDG_CONFIG_HOME`, or set `APPDIST_CONFIG`). It can also run
+non-interactively: `appdist init --url ... --user ... --password ...`.
+
+In CI skip `init` and set `APPDIST_URL`, `APPDIST_USER` and
+`APPDIST_PASSWORD`; they override the stored config.
 
 ## Development
 
