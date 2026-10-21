@@ -1,0 +1,13 @@
+.git
+.github
+.output
+.nitro
+.tanstack
+.vscode
+node_modules
+data
+docs
+*.md
+.env*
+Dockerfile
+.dockerignore
