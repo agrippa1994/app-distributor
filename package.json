@@ -1,6 +1,9 @@
 {
   "name": "app-distributor",
   "private": true,
+  "bin": {
+    "appdist": "./cli/appdist.ts"
+  },
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -11,7 +14,8 @@
     "start": "bun start.mjs",
     "check": "vp check",
     "generate-routes": "tsr generate",
-    "preview": "vp preview"
+    "preview": "vp preview",
+    "build:cli": "bun build cli/appdist.ts --compile --minify --outfile dist/appdist"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

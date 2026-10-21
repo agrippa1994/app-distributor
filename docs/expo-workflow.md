@@ -144,7 +144,16 @@ curl -fL -o dist/app.ipa "$(jq -r '.[0].artifacts.buildUrl' build.json)"
 
 ---
 
-## 5. Upload with curl
+## 5. Upload
+
+With the `appdist` CLI (see [CLI](../README.md#cli)):
+
+```sh
+appdist init                                    # once: server URL + credentials
+appdist upload dist/app.ipa -n "Fix crash on login"
+```
+
+Or with curl:
 
 ```sh
 # Streams the file - best for large builds
