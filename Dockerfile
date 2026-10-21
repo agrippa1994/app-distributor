@@ -18,10 +18,11 @@ ENV NODE_ENV=production \
     PORT=3000 \
     DATA_DIR=/data
 COPY --from=build /app/.output ./.output
+COPY --from=build /app/start.mjs ./
 # Pre-create the data dir owned by the runtime user so a fresh named volume inherits it.
 COPY --from=build --chown=nonroot:nonroot /data /data
 USER nonroot
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-ENTRYPOINT ["bun", ".output/server/index.mjs"]
+ENTRYPOINT ["bun", "start.mjs"]

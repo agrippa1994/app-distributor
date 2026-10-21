@@ -16,7 +16,13 @@ const config = defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   resolve: { tsconfigPaths: true },
-  plugins: lazyPlugins(() => [devtools(), nitro(), tailwindcss(), tanstackStart(), viteReact()]),
+  plugins: lazyPlugins(() => [
+    devtools(),
+    nitro({ preset: "standard", serveStatic: "node" }),
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+  ]),
 });
 
 export default config;

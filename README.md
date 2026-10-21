@@ -56,7 +56,7 @@ curl -fu me -T build.ipa https://apps.example.com/api/upload
 bun install
 USERS=dev:dev bun run dev        # http://localhost:3000
 bun --bun vp check               # format, lint, typecheck
-bun --bun run build && bun .output/server/index.mjs
+bun --bun run build && bun start.mjs
 ```
 
 iOS installs only work over HTTPS with a trusted certificate, so test the
