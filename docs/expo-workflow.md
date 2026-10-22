@@ -126,7 +126,21 @@ installed app if the new build is signed with the **same key**.
 
 ## 4. Build
 
-### Local build (no EAS cloud minutes)
+### Local build with `appdist` (no EAS)
+
+After `npx expo install` and `npx expo prebuild` (once, and again after
+upgrading Expo or adding native modules), from the project directory:
+
+```sh
+appdist build all -n "Fix crash on login"
+```
+
+This archives and exports an ad-hoc `.ipa` with Xcode, builds the release
+`.apk` with Gradle, and uploads each one. The JS bundle uses only
+`.env.production.local`. See [Building Expo apps without EAS](../README.md#building-expo-apps-without-eas)
+for signing and options.
+
+### Local build with EAS (no EAS cloud minutes)
 
 Requires Xcode (iOS) / Android SDK + JDK (Android) on your machine:
 

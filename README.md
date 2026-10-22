@@ -73,6 +73,32 @@ non-interactively: `appdist init --url ... --user ... --password ...`.
 In CI skip `init` and set `APPDIST_URL`, `APPDIST_USER` and
 `APPDIST_PASSWORD`; they override the stored config.
 
+### Building Expo apps without EAS
+
+`appdist build` builds the Expo project in the current directory locally with
+Xcode / Gradle and uploads the result. Run `npx expo install` (or your package
+manager's install) and `npx expo prebuild` once; after that:
+
+```sh
+appdist build ios -n "Fix login"   # xcodebuild archive + export (ad-hoc) → upload .ipa
+appdist build android              # gradlew app:assembleRelease → upload .apk
+appdist build all                  # both, each uploaded right after it's built
+```
+
+- The JS bundle gets **only** the variables from `.env.production.local`
+  (`--env-file` to change). Expo's own `.env*` loading is turned off, so
+  development values in `.env.local` can't end up in a release build.
+- iOS uses automatic signing with the team from the Xcode project
+  (`-allowProvisioningUpdates`). `--export-method development|enterprise`
+  switches the export method. Output: `ios/build/appdist/`.
+- Android signs with the debug keystore unless `APPDIST_ANDROID_KEYSTORE`,
+  `APPDIST_ANDROID_KEYSTORE_PASSWORD`, `APPDIST_ANDROID_KEY_ALIAS` (and
+  optionally `APPDIST_ANDROID_KEY_PASSWORD`) are set, in the environment or the
+  env file. They're passed as Gradle's injected signing properties, so the
+  generated `build.gradle` stays untouched. `ANDROID_HOME` defaults to
+  `~/Library/Android/sdk`.
+- `--skip-upload` only builds; `--verbose` shows the full build output.
+
 ## Development
 
 ```sh

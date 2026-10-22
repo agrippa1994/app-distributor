@@ -4,6 +4,7 @@
  *
  *   appdist init                     store server URL and credentials
  *   appdist upload <file> [-n notes] upload a build
+ *   appdist build <ios|android|all>  build an Expo project locally and upload it
  *
  * Credentials live in $XDG_CONFIG_HOME/app-distributor/config.json
  * (~/.config/... by default, mode 0600). APPDIST_URL, APPDIST_USER and
@@ -15,6 +16,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { parseArgs } from "node:util";
+import { build } from "./build.ts";
 
 interface Config {
   url: string;
@@ -32,10 +34,20 @@ Commands:
   upload <file>            Upload an .ipa or .apk
     -n, --notes <text>     Release notes
     --json                 Print the server response as JSON
+  build <ios|android|all>  Build the Expo project in the current directory
+                           (after \`expo prebuild\`) and upload the result
+    -n, --notes <text>     Release notes
+    --env-file <path>      Env file for the build (default .env.production.local)
+    --export-method <m>    iOS: ad-hoc (default), development or enterprise
+    --skip-upload          Only build
+    --verbose              Show full xcodebuild/gradle output
 
 Environment:
   APPDIST_URL, APPDIST_USER, APPDIST_PASSWORD override the stored config.
   APPDIST_CONFIG sets the config file path.
+  APPDIST_ANDROID_KEYSTORE, APPDIST_ANDROID_KEYSTORE_PASSWORD,
+  APPDIST_ANDROID_KEY_ALIAS, APPDIST_ANDROID_KEY_PASSWORD sign the release APK
+  (also read from the env file). Without them the debug keystore is used.
 `;
 
 function configPath(): string {
@@ -182,7 +194,14 @@ async function upload(argv: string[]): Promise<void> {
   });
   const [file] = positionals;
   if (!file || positionals.length > 1) throw new Error("Usage: appdist upload <file> [-n notes]");
+  await uploadFile(file, values);
+}
 
+/** Uploads an .ipa/.apk and prints the result. */
+async function uploadFile(
+  file: string,
+  values: { notes?: string; json?: boolean } = {},
+): Promise<void> {
   const config = await loadConfig();
   const { size } = await stat(file);
   const filename = basename(file);
@@ -265,6 +284,8 @@ async function main(): Promise<void> {
       return init(rest);
     case "upload":
       return upload(rest);
+    case "build":
+      return build(rest, uploadFile);
     case undefined:
     case "help":
     case "-h":
