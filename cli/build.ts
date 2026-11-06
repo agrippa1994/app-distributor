@@ -160,42 +160,60 @@ async function buildIos(
 
 async function buildAndroid(root: string, env: Env, verbose: boolean): Promise<string> {
   const androidDir = join(root, "android");
-  const apk = join(androidDir, "app", "build", "outputs", "apk", "release", "app-release.apk");
-  await rm(apk, { force: true });
+  const output = join(androidDir, "app", "build", "outputs", "apk", "release", "app-release.apk");
+  // Check signing first, so a missing setting fails before anything is deleted or built.
+  const signing = androidSigning(root, env);
+  await rm(output, { force: true });
 
-  const buildEnv = { ...env };
+  const buildEnv = { ...env, ...signing };
   const hasSdkDir = existsSync(join(androidDir, "local.properties"));
   if (!buildEnv.ANDROID_HOME && !buildEnv.ANDROID_SDK_ROOT && !hasSdkDir) {
     const sdk = join(homedir(), "Library", "Android", "sdk");
     if (existsSync(sdk)) buildEnv.ANDROID_HOME = sdk;
   }
 
-  // Android Gradle Plugin's injected signing properties override the
-  // signingConfig that prebuild generates (the debug keystore).
-  const signing: string[] = [];
-  const keystore = env.APPDIST_ANDROID_KEYSTORE;
-  if (keystore) {
-    const required = ["APPDIST_ANDROID_KEYSTORE_PASSWORD", "APPDIST_ANDROID_KEY_ALIAS"];
-    const missing = required.filter((name) => !env[name]);
-    if (missing.length) throw new Error(`Missing ${missing.join(", ")}`);
-    signing.push(
-      `-Pandroid.injected.signing.store.file=${resolve(root, keystore)}`,
-      `-Pandroid.injected.signing.store.password=${env.APPDIST_ANDROID_KEYSTORE_PASSWORD}`,
-      `-Pandroid.injected.signing.key.alias=${env.APPDIST_ANDROID_KEY_ALIAS}`,
-      `-Pandroid.injected.signing.key.password=${env.APPDIST_ANDROID_KEY_PASSWORD ?? env.APPDIST_ANDROID_KEYSTORE_PASSWORD}`,
-    );
-  } else {
-    log("warning: APPDIST_ANDROID_KEYSTORE not set - the APK is signed with the debug keystore");
-  }
-
   log("Building release APK…");
+  // Run gradlew with bash, not its #!/bin/sh: dash (sh on Debian/Ubuntu) drops
+  // variables with dots in their names, which would silently lose the signing
+  // settings and leave the build signed with the debug keystore.
   await run(
-    "./gradlew",
-    ["app:assembleRelease", ...(verbose ? [] : ["--quiet", "--console=plain"]), ...signing],
-    { cwd: androidDir, env: buildEnv },
+    "bash",
+    ["./gradlew", "app:assembleRelease", ...(verbose ? [] : ["--quiet", "--console=plain"])],
+    { cwd: androidDir, env: buildEnv, name: "gradlew" },
   );
-  if (!existsSync(apk)) throw new Error(`Gradle did not produce ${apk}`);
-  return apk;
+  if (!existsSync(output)) throw new Error(`Gradle did not produce ${output}`);
+  return output;
+}
+
+/**
+ * Android Gradle Plugin's injected signing properties override the
+ * signingConfig that prebuild generates (the debug keystore). They're returned
+ * as ORG_GRADLE_PROJECT_* variables instead of -P arguments because any local
+ * user can read a process's arguments with `ps`, and the passwords must stay
+ * out of them.
+ */
+function androidSigning(root: string, env: Env): Env {
+  const keystore = env.APPDIST_ANDROID_KEYSTORE;
+  if (!keystore) {
+    log("warning: APPDIST_ANDROID_KEYSTORE not set - the APK is signed with the debug keystore");
+    return {};
+  }
+  const missing = [
+    "APPDIST_ANDROID_KEYSTORE",
+    "APPDIST_ANDROID_KEYSTORE_PASSWORD",
+    "APPDIST_ANDROID_KEY_ALIAS",
+  ].filter((name) => !env[name]);
+  if (missing.length) throw new Error(`Missing ${missing.join(", ")}`);
+  const storeFile = resolve(root, keystore!);
+  if (!existsSync(storeFile)) throw new Error(`Keystore not found: ${storeFile}`);
+  const prefix = "ORG_GRADLE_PROJECT_android.injected.signing";
+  return {
+    [`${prefix}.store.file`]: storeFile,
+    [`${prefix}.store.password`]: env.APPDIST_ANDROID_KEYSTORE_PASSWORD,
+    [`${prefix}.key.alias`]: env.APPDIST_ANDROID_KEY_ALIAS,
+    [`${prefix}.key.password`]:
+      env.APPDIST_ANDROID_KEY_PASSWORD || env.APPDIST_ANDROID_KEYSTORE_PASSWORD,
+  };
 }
 
 /** Minimal dotenv parser: KEY=value, `export`, quotes and # comments. */
@@ -218,9 +236,9 @@ export function parseEnv(source: string): Record<string, string> {
 function run(
   command: string,
   args: string[],
-  options: { cwd: string; env: Env; hide?: RegExp },
+  options: { cwd: string; env: Env; hide?: RegExp; name?: string },
 ): Promise<void> {
-  const { hide, ...spawnOptions } = options;
+  const { hide, name = command, ...spawnOptions } = options;
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, {
       ...spawnOptions,
@@ -239,7 +257,7 @@ function run(
     child.on("error", reject);
     child.on("close", (code, signal) => {
       if (code === 0) resolvePromise();
-      else reject(new Error(`${command} failed (${signal ?? `exit code ${code}`})`));
+      else reject(new Error(`${name} failed (${signal ?? `exit code ${code}`})`));
     });
   });
 }
