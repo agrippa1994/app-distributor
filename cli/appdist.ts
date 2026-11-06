@@ -5,6 +5,7 @@
  *   appdist init                     store server URL and credentials
  *   appdist upload <file> [-n notes] upload a build
  *   appdist build <ios|android|all>  build an Expo project locally and upload it
+ *   appdist build android --aab      build a signed .aab for Google Play
  *
  * Credentials live in $XDG_CONFIG_HOME/app-distributor/config.json
  * (~/.config/... by default, mode 0600). APPDIST_URL, APPDIST_USER and
@@ -40,14 +41,17 @@ Commands:
     --env-file <path>      Env file for the build (default .env.production.local)
     --export-method <m>    iOS: ad-hoc (default), development or enterprise
     --skip-upload          Only build
+    --aab                  Android only: build a signed .aab for Google Play and
+                           print its path instead of uploading (needs the keystore)
     --verbose              Show full xcodebuild/gradle output
 
 Environment:
   APPDIST_URL, APPDIST_USER, APPDIST_PASSWORD override the stored config.
   APPDIST_CONFIG sets the config file path.
   APPDIST_ANDROID_KEYSTORE, APPDIST_ANDROID_KEYSTORE_PASSWORD,
-  APPDIST_ANDROID_KEY_ALIAS, APPDIST_ANDROID_KEY_PASSWORD sign the release APK
-  (also read from the env file). Without them the debug keystore is used.
+  APPDIST_ANDROID_KEY_ALIAS, APPDIST_ANDROID_KEY_PASSWORD sign the release APK or AAB
+  (also read from the env file). Without them an APK uses the debug keystore and
+  an AAB build fails.
 `;
 
 function configPath(): string {

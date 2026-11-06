@@ -140,6 +140,9 @@ This archives and exports an ad-hoc `.ipa` with Xcode, builds the release
 `.env.production.local`. See [Building Expo apps without EAS](../README.md#building-expo-apps-without-eas)
 for signing and options.
 
+For Google Play, `appdist build android --aab` builds a signed `.aab` instead.
+App Distributor can't install a bundle, so upload it to Play Console yourself.
+
 ### Local build with EAS (no EAS cloud minutes)
 
 Requires Xcode (iOS) / Android SDK + JDK (Android) on your machine:
