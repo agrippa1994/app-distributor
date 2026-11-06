@@ -13,6 +13,7 @@
     "build": "vp build",
     "start": "bun start.mjs",
     "check": "vp check",
+    "test": "vp test",
     "generate-routes": "tsr generate",
     "preview": "vp preview",
     "build:cli": "bun build cli/appdist.ts --compile --minify --outfile dist/appdist"
