@@ -83,6 +83,7 @@ manager's install) and `npx expo prebuild` once; after that:
 appdist build ios -n "Fix login"   # xcodebuild archive + export (ad-hoc) → upload .ipa
 appdist build android              # gradlew app:assembleRelease → upload .apk
 appdist build all                  # both, each uploaded right after it's built
+appdist build android --aab        # gradlew app:bundleRelease → print .aab path, no upload
 ```
 
 - The JS bundle gets **only** the variables from `.env.production.local`
@@ -95,8 +96,13 @@ appdist build all                  # both, each uploaded right after it's built
   `APPDIST_ANDROID_KEYSTORE_PASSWORD`, `APPDIST_ANDROID_KEY_ALIAS` (and
   optionally `APPDIST_ANDROID_KEY_PASSWORD`) are set, in the environment or the
   env file. They're passed as Gradle's injected signing properties, so the
-  generated `build.gradle` stays untouched. `ANDROID_HOME` defaults to
+  generated `build.gradle` stays untouched. `APPDIST_ANDROID_KEY_PASSWORD`
+  defaults to the keystore password. `ANDROID_HOME` defaults to
   `~/Library/Android/sdk`.
+- `--aab` builds a bundle for Google Play. It fails if the keystore settings are
+  missing, because Play rejects a debug-signed bundle. The server can't install
+  an `.aab`, so it isn't uploaded: the path is printed for you to upload to Play
+  Console (`android/app/build/outputs/bundle/release/app-release.aab`).
 - `--skip-upload` only builds; `--verbose` shows the full build output.
 
 ## Development
