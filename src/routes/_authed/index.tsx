@@ -8,6 +8,7 @@ import { Card } from "#/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import { useClientPlatform } from "#/lib/device";
 import { formatRelative } from "#/lib/format";
+import { canAny } from "#/lib/permissions";
 import { appsQuery } from "#/lib/queries";
 import type { Platform } from "#/lib/types";
 
@@ -26,6 +27,8 @@ export const Route = createFileRoute("/_authed/")({
 
 function AppsPage() {
   const { data: apps } = useSuspenseQuery(appsQuery);
+  const { access } = Route.useRouteContext();
+  const mayUpload = canAny(access, "upload");
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const clientPlatform = useClientPlatform();
@@ -39,13 +42,19 @@ function AppsPage() {
         <PackageOpenIcon className="size-12 text-muted-foreground" />
         <div>
           <h1 className="text-xl font-semibold">No apps yet</h1>
-          <p className="text-muted-foreground">Upload an .ipa or .apk to get started.</p>
+          <p className="text-muted-foreground">
+            {mayUpload
+              ? "Upload an .ipa or .apk to get started."
+              : "No apps have been shared with this account."}
+          </p>
         </div>
-        <Button asChild>
-          <Link to="/upload">
-            <UploadIcon /> Upload a build
-          </Link>
-        </Button>
+        {mayUpload && (
+          <Button asChild>
+            <Link to="/upload">
+              <UploadIcon /> Upload a build
+            </Link>
+          </Button>
+        )}
       </div>
     );
   }

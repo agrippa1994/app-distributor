@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function int(name: string, fallback: number): number {
@@ -20,29 +19,6 @@ function sessionSecret(): string {
   return randomBytes(32).toString("hex");
 }
 
-/**
- * Users in htpasswd format (`user:password` or `user:$2y$...` bcrypt hash),
- * one per line or comma-separated in USERS, and/or a file in USERS_FILE.
- */
-function loadUsers(): Map<string, string> {
-  const users = new Map<string, string>();
-  const sources = [process.env.USERS ?? ""];
-  if (process.env.USERS_FILE) sources.push(readFileSync(process.env.USERS_FILE, "utf8"));
-  for (const source of sources) {
-    for (const line of source.split(/[\n,]/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const idx = trimmed.indexOf(":");
-      if (idx <= 0) continue;
-      users.set(trimmed.slice(0, idx), trimmed.slice(idx + 1));
-    }
-  }
-  if (users.size === 0) {
-    console.warn("[app-distributor] No users configured. Set USERS or USERS_FILE.");
-  }
-  return users;
-}
-
 function lazy<T>(fn: () => T): () => T {
   let value: T | undefined;
   let done = false;
@@ -59,7 +35,6 @@ function lazy<T>(fn: () => T): () => T {
 export const config = lazy(() => ({
   dataDir: resolve(process.env.DATA_DIR ?? "./data"),
   sessionSecret: sessionSecret(),
-  users: loadUsers(),
   /** Public base URL, e.g. https://apps.example.com. Derived from the request when unset. */
   publicUrl: process.env.PUBLIC_URL?.replace(/\/+$/, ""),
   sessionTtlSeconds: int("SESSION_TTL_HOURS", 24 * 30) * 3600,

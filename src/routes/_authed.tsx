@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import {
+  KeyRoundIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
@@ -8,6 +9,7 @@ import {
   SunIcon,
   UploadIcon,
   UserIcon,
+  UsersIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -22,17 +24,23 @@ import {
 } from "#/components/ui/dropdown-menu";
 import { logout } from "#/lib/api";
 import { useClientPlatform, useDevice } from "#/lib/device";
+import { canAny } from "#/lib/permissions";
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: ({ context, location }) => {
-    if (!context.user) throw redirect({ to: "/login", search: { redirect: location.href } });
-    return { user: context.user };
+    if (!context.user || !context.access) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+    if (context.access.mustChangePassword && location.pathname !== "/change-password") {
+      throw redirect({ to: "/change-password" });
+    }
+    return { user: context.user, access: context.access };
   },
   component: AuthedLayout,
 });
 
 function AuthedLayout() {
-  const { user } = Route.useRouteContext();
+  const { user, access } = Route.useRouteContext();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setTheme } = useTheme();
@@ -65,12 +73,14 @@ function AuthedLayout() {
                 </Link>
               </Button>
             )}
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/upload">
-                <UploadIcon />
-                <span className="hidden sm:inline">Upload</span>
-              </Link>
-            </Button>
+            {canAny(access, "upload") && !access.mustChangePassword && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/upload">
+                  <UploadIcon />
+                  <span className="hidden sm:inline">Upload</span>
+                </Link>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-sm" aria-label="Account">
@@ -85,6 +95,18 @@ function AuthedLayout() {
                     <SmartphoneIcon /> Device
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/change-password">
+                    <KeyRoundIcon /> Change password
+                  </Link>
+                </DropdownMenuItem>
+                {access.admin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/accounts">
+                      <UsersIcon /> Accounts
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setTheme("light")}>
                   <SunIcon /> Light

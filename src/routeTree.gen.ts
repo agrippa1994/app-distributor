@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedAccountsRouteImport } from './routes/_authed/accounts'
+import { Route as AuthedChangePasswordRouteImport } from './routes/_authed/change-password'
 import { Route as AuthedDeviceRouteImport } from './routes/_authed/device'
 import { Route as AuthedUploadRouteImport } from './routes/_authed/upload'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -35,6 +37,16 @@ const LoginRoute = LoginRouteImport.update({
 const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAccountsRoute = AuthedAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedChangePasswordRoute = AuthedChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedDeviceRoute = AuthedDeviceRouteImport.update({
@@ -91,6 +103,8 @@ const ApiDlTokenFileRoute = ApiDlTokenFileRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
+  '/accounts': typeof AuthedAccountsRoute
+  '/change-password': typeof AuthedChangePasswordRoute
   '/device': typeof AuthedDeviceRoute
   '/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
@@ -104,6 +118,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/accounts': typeof AuthedAccountsRoute
+  '/change-password': typeof AuthedChangePasswordRoute
   '/device': typeof AuthedDeviceRoute
   '/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
@@ -120,6 +136,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authed/accounts': typeof AuthedAccountsRoute
+  '/_authed/change-password': typeof AuthedChangePasswordRoute
   '/_authed/device': typeof AuthedDeviceRoute
   '/_authed/upload': typeof AuthedUploadRoute
   '/api/health': typeof ApiHealthRoute
@@ -137,6 +155,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/accounts'
+    | '/change-password'
     | '/device'
     | '/upload'
     | '/api/health'
@@ -150,6 +170,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/accounts'
+    | '/change-password'
     | '/device'
     | '/upload'
     | '/api/health'
@@ -165,6 +187,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authed'
     | '/login'
+    | '/_authed/accounts'
+    | '/_authed/change-password'
     | '/_authed/device'
     | '/_authed/upload'
     | '/api/health'
@@ -210,6 +234,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/accounts': {
+      id: '/_authed/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AuthedAccountsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/change-password': {
+      id: '/_authed/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof AuthedChangePasswordRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/device': {
@@ -286,6 +324,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedAccountsRoute: typeof AuthedAccountsRoute
+  AuthedChangePasswordRoute: typeof AuthedChangePasswordRoute
   AuthedDeviceRoute: typeof AuthedDeviceRoute
   AuthedUploadRoute: typeof AuthedUploadRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
@@ -293,6 +333,8 @@ interface AuthedRouteChildren {
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAccountsRoute: AuthedAccountsRoute,
+  AuthedChangePasswordRoute: AuthedChangePasswordRoute,
   AuthedDeviceRoute: AuthedDeviceRoute,
   AuthedUploadRoute: AuthedUploadRoute,
   AuthedIndexRoute: AuthedIndexRoute,

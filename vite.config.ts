@@ -18,7 +18,11 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: lazyPlugins(() => [
     devtools(),
-    nitro({ preset: "standard", serveStatic: "node" }),
+    nitro({
+      preset: "standard",
+      serveStatic: "node",
+      plugins: ["./src/server/nitro-startup.ts"],
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),

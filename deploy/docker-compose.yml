@@ -6,11 +6,9 @@ services:
     environment:
       PUBLIC_URL: https://${APP_DISTRIBUTOR_DOMAIN}
       SESSION_SECRET: ${SESSION_SECRET}
-      USERS_FILE: /run/secrets/users.htpasswd
       KEEP_VERSIONS: ${KEEP_VERSIONS:-0}
     volumes:
       - app-distributor-data:/data
-      - ./users.htpasswd:/run/secrets/users.htpasswd:ro
     networks:
       - proxy
     labels:

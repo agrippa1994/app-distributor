@@ -1,10 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { CodeBlock } from "#/components/copy-button";
 import { UploadDropzone } from "#/components/upload-dropzone";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
+import { canAny } from "#/lib/permissions";
 
 export const Route = createFileRoute("/_authed/upload")({
+  beforeLoad: ({ context }) => {
+    if (!canAny(context.access, "upload")) throw redirect({ to: "/" });
+  },
   head: () => ({ meta: [{ title: "Upload · App Distributor" }] }),
   component: UploadPage,
 });
