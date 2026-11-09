@@ -227,8 +227,9 @@ curl -fsS -u "$DIST_USER:$DIST_PASSWORD" -T "$out" --url-query "notes=$notes" "$
 echo
 ```
 
-Use a dedicated user for CI/scripts (see `USERS` in the server README) so it
-can be rotated independently.
+Use a dedicated account for CI/scripts with only **Push** permission for the
+app (see "Accounts and permissions" in the server README), so it can be
+rotated independently.
 
 ---
 

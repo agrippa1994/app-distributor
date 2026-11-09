@@ -1,5 +1,7 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
+import type { Access } from "#/lib/permissions";
+import { findAccount } from "./accounts";
 import { config } from "./config";
 
 export const SESSION_COOKIE = "ad_session";
@@ -10,23 +12,40 @@ function safeEqual(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
-/** Verify a password against an htpasswd-style entry (bcrypt, {SHA} or plaintext). */
-function checkPassword(stored: string, password: string): boolean {
-  // htpasswd emits $2y$, which is identical to $2b$
-  if (/^\$2[aby]\$/.test(stored))
-    return bcrypt.compareSync(password, stored.replace(/^\$2y\$/, "$2b$"));
-  if (stored.startsWith("{SHA}")) {
-    return safeEqual(stored.slice(5), createHash("sha1").update(password).digest("base64"));
-  }
-  return safeEqual(stored, password);
+/** An authenticated user. `sessionGen` ties sessions to the current password. */
+export interface Principal extends Access {
+  sessionGen: number;
 }
 
-export async function verifyCredentials(username: string, password: string): Promise<boolean> {
-  const stored = config().users.get(username);
-  const ok = stored !== undefined && checkPassword(stored, password);
+interface Candidate {
+  principal: Principal;
+  verify: (password: string) => Promise<boolean>;
+}
+
+function lookup(username: string): Candidate | null {
+  const account = findAccount(username);
+  if (!account) return null;
+  return {
+    principal: {
+      user: account.username,
+      admin: account.admin,
+      grants: account.grants,
+      mustChangePassword: account.mustChangePassword,
+      sessionGen: account.sessionGen,
+    },
+    verify: (password) => bcrypt.compare(password, account.passwordHash),
+  };
+}
+
+export async function verifyCredentials(
+  username: string,
+  password: string,
+): Promise<Principal | null> {
+  const candidate = lookup(username);
+  const ok = candidate !== null && (await candidate.verify(password));
   // Slow down brute force attempts a little.
   if (!ok) await new Promise((r) => setTimeout(r, 400));
-  return ok;
+  return ok ? candidate.principal : null;
 }
 
 export function sign(payload: string): string {
@@ -51,11 +70,19 @@ export function readToken<T extends { exp: number }>(token: string): T | null {
   }
 }
 
-export function createSessionToken(username: string): string {
+interface SessionToken {
+  u: string;
+  /** Session generation of the account; changes when the password changes. */
+  g?: number;
+  exp: number;
+}
+
+export function createSessionToken(principal: Principal): string {
   return createToken({
-    u: username,
+    u: principal.user,
+    g: principal.sessionGen,
     exp: Math.floor(Date.now() / 1000) + config().sessionTtlSeconds,
-  });
+  } satisfies SessionToken);
 }
 
 function parseCookies(header: string | null): Record<string, string> {
@@ -71,11 +98,12 @@ function parseCookies(header: string | null): Record<string, string> {
  * Resolve the user of a request, either from the session cookie (browser) or
  * an `Authorization: Basic` header (curl).
  */
-export async function authenticate(request: Request): Promise<string | null> {
+export async function authenticate(request: Request): Promise<Principal | null> {
   const token = parseCookies(request.headers.get("cookie"))[SESSION_COOKIE];
   if (token) {
-    const session = readToken<{ u: string; exp: number }>(token);
-    if (session && config().users.has(session.u)) return session.u;
+    const session = readToken<SessionToken>(token);
+    const principal = session ? lookup(session.u)?.principal : undefined;
+    if (principal && principal.sessionGen === (session?.g ?? 0)) return principal;
   }
 
   const auth = request.headers.get("authorization");
@@ -83,11 +111,14 @@ export async function authenticate(request: Request): Promise<string | null> {
     const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
     const idx = decoded.indexOf(":");
     if (idx > 0) {
-      const username = decoded.slice(0, idx);
-      if (await verifyCredentials(username, decoded.slice(idx + 1))) return username;
+      return verifyCredentials(decoded.slice(0, idx), decoded.slice(idx + 1));
     }
   }
   return null;
+}
+
+export function forbidden(message = "Forbidden"): Response {
+  return Response.json({ error: message }, { status: 403 });
 }
 
 export function unauthorized(): Response {

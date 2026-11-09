@@ -107,6 +107,8 @@ export interface StoreInput {
   uploadedBy: string;
   notes?: string;
   originalFilename?: string;
+  /** Called with the app key once the binary is parsed; throw to reject the upload. */
+  authorize?: (appKey: string) => void;
 }
 
 /**
@@ -118,6 +120,7 @@ export async function storeUpload(
 ): Promise<{ version: VersionMeta; duplicate: boolean }> {
   const info = await inspectBinary(input.tmpPath);
   const appKey = appKeyFor(info.platform, info.bundleId);
+  input.authorize?.(appKey);
 
   const existing = (await listVersions(appKey)).find((v) => v.sha256 === input.sha256);
   if (existing) {

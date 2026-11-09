@@ -39,6 +39,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip
 import { removeVersion } from "#/lib/api";
 import { type Compatibility, compatibility, useClientPlatform, useDevice } from "#/lib/device";
 import { formatBytes, formatDate, formatRelative } from "#/lib/format";
+import { can } from "#/lib/permissions";
 import { appQuery } from "#/lib/queries";
 import type { VersionWithLinks } from "#/lib/types";
 
@@ -64,7 +65,8 @@ export const Route = createFileRoute("/_authed/apps/$appKey")({
 
 function AppPage() {
   const { appKey } = Route.useParams();
-  const { baseUrl } = Route.useRouteContext();
+  const { baseUrl, access } = Route.useRouteContext();
+  const mayDelete = can(access, "upload", appKey);
   const { data: versions } = useSuspenseQuery(appQuery(appKey));
   const clientPlatform = useClientPlatform();
   const device = useDevice();
@@ -135,7 +137,7 @@ function AppPage() {
             isLatest={i === 0}
             compat={compatibility(v, device)}
             showInstall={onMatchingPhone}
-            onDelete={() => setToDelete(v)}
+            onDelete={mayDelete ? () => setToDelete(v) : undefined}
           />
         ))}
       </section>
@@ -156,7 +158,7 @@ function VersionCard({
   isLatest: boolean;
   compat: Compatibility;
   showInstall: boolean;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   const prov = v.ios?.provisioning;
   const expired = prov?.expiresAt ? new Date(prov.expiresAt) < new Date() : false;
@@ -219,10 +221,14 @@ function VersionCard({
                 >
                   <LinkIcon /> Copy install link
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                  <Trash2Icon /> Delete version
-                </DropdownMenuItem>
+                {onDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                      <Trash2Icon /> Delete version
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

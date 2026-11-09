@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
-import { authenticate, unauthorized } from "./auth";
+import { can, canAny } from "#/lib/permissions";
+import { authenticate, forbidden, unauthorized } from "./auth";
 import { config } from "./config";
 import { baseUrl } from "./links";
 import { ensureDirs, storeUpload, tmpDir } from "./storage";
@@ -20,6 +21,8 @@ import { ensureDirs, storeUpload, tmpDir } from "./storage";
 export async function handleUpload(request: Request): Promise<Response> {
   const user = await authenticate(request);
   if (!user) return unauthorized();
+  if (user.mustChangePassword) return forbidden("Sign in to the web UI and change your password");
+  if (!canAny(user, "upload")) return forbidden("This account may not upload builds");
 
   const url = new URL(request.url);
   let notes = url.searchParams.get("notes") ?? request.headers.get("x-notes") ?? undefined;
@@ -71,9 +74,14 @@ export async function handleUpload(request: Request): Promise<Response> {
       tmpPath,
       size,
       sha256: hash.digest("hex"),
-      uploadedBy: user,
+      uploadedBy: user.user,
       notes,
       originalFilename: filename,
+      authorize: (appKey) => {
+        if (!can(user, "upload", appKey)) {
+          throw new UploadError(403, `This account may not upload builds of ${appKey}`);
+        }
+      },
     });
 
     return Response.json(

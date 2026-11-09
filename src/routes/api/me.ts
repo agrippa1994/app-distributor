@@ -7,7 +7,13 @@ export const Route = createFileRoute("/api/me")({
     handlers: {
       GET: async ({ request }) => {
         const user = await authenticate(request);
-        return user ? Response.json({ user }) : unauthorized();
+        if (!user) return unauthorized();
+        return Response.json({
+          user: user.user,
+          admin: user.admin,
+          grants: user.grants,
+          mustChangePassword: user.mustChangePassword,
+        });
       },
     },
   },

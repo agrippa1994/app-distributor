@@ -7,7 +7,8 @@ Self-hosted over-the-air distribution for your own iOS (`.ipa`) and Android
 **Install**. Every upload is kept as a version so you can roll back to any
 earlier build.
 
-- Login with htpasswd-style users (bcrypt hashes or plain passwords)
+- Accounts managed in the web UI, each with read and/or push permission for
+  all apps or a chosen set of apps; an admin account is created on first start
 - Upload via `curl` (Basic auth) or drag & drop in the browser
 - Name, bundle id, version and build number are read from the binary; iOS
   provisioning (ad-hoc / development / enterprise, device count, expiry) is
@@ -16,7 +17,8 @@ earlier build.
   the iOS installer can download without a session
 - Optional device identification (UDID) on iPhone/iPad, so the UI shows which
   builds are provisioned for that device
-- Plain-file storage in one directory (`/data`) — easy to back up
+- Everything in one directory (`/data`): builds as plain files, accounts in
+  SQLite with a consistent snapshot that is safe to back up while running
 
 Stack: TanStack Start + TanStack Query, shadcn/ui, Bun, Vite+ (`vp`).
 
@@ -24,18 +26,59 @@ Preparing an Expo app for this workflow: **[docs/expo-workflow.md](docs/expo-wor
 
 ## Configuration
 
-| Variable            | Default                      | Description                                                                                                                                            |
-| ------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `USERS`             | –                            | Users as `user:hash` entries separated by newlines or commas. Hash from `htpasswd -nbB user pass` (bcrypt), `{SHA}` or plain text.                     |
-| `USERS_FILE`        | –                            | Path to an htpasswd file (combined with `USERS`). Read at startup.                                                                                     |
-| `SESSION_SECRET`    | random                       | Signs session cookies and install links. **Set it in production**, otherwise everyone is logged out and links break on restart. `openssl rand -hex 32` |
-| `PUBLIC_URL`        | from request                 | External base URL, e.g. `https://apps.example.com`. Without it the URL is derived from `X-Forwarded-Proto`/`X-Forwarded-Host`/`Host`.                  |
-| `DATA_DIR`          | `./data` (`/data` in Docker) | Where builds and metadata are stored.                                                                                                                  |
-| `KEEP_VERSIONS`     | `0`                          | Keep at most N versions per app; older ones are deleted on upload. `0` keeps everything.                                                               |
-| `MAX_UPLOAD_MB`     | `4096`                       | Maximum upload size.                                                                                                                                   |
-| `SESSION_TTL_HOURS` | `720`                        | Login session lifetime.                                                                                                                                |
-| `LINK_TTL_HOURS`    | `24`                         | Lifetime of install/download links (the UI refreshes them automatically).                                                                              |
-| `PORT` / `HOST`     | `3000` / `0.0.0.0`           | Listen address.                                                                                                                                        |
+| Variable               | Default                      | Description                                                                                                                                            |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SESSION_SECRET`       | random                       | Signs session cookies and install links. **Set it in production**, otherwise everyone is logged out and links break on restart. `openssl rand -hex 32` |
+| `PUBLIC_URL`           | from request                 | External base URL, e.g. `https://apps.example.com`. Without it the URL is derived from `X-Forwarded-Proto`/`X-Forwarded-Host`/`Host`.                  |
+| `DATA_DIR`             | `./data` (`/data` in Docker) | Where builds and metadata are stored.                                                                                                                  |
+| `KEEP_VERSIONS`        | `0`                          | Keep at most N versions per app; older ones are deleted on upload. `0` keeps everything.                                                               |
+| `MAX_UPLOAD_MB`        | `4096`                       | Maximum upload size.                                                                                                                                   |
+| `SESSION_TTL_HOURS`    | `720`                        | Login session lifetime.                                                                                                                                |
+| `LINK_TTL_HOURS`       | `24`                         | Lifetime of install/download links (the UI refreshes them automatically).                                                                              |
+| `PORT` / `HOST`        | `3000` / `0.0.0.0`           | Listen address.                                                                                                                                        |
+| `RESET_ADMIN_PASSWORD` | –                            | `true` gives the `admin` account a new generated password (printed in the log) on start. Remove it again afterwards. See below.                        |
+
+## Accounts and permissions
+
+On the first start (no accounts yet) the server creates the account `admin`
+with a random password and prints both to the log, once:
+
+```
+========================================================================
+Created the admin account in /data/accounts.db.
+
+  Username: admin
+  Password: 8wvexgQ4-5yOtXpl
+
+Sign in and change the password; until then the account can do nothing else.
+This password is not shown again.
+========================================================================
+```
+
+Find it with `docker compose logs app-distributor`. Until its password is
+changed the account is limited to the **Change password** page; the API
+(uploads, CLI) rejects it with `403`. Every user can change their own password
+under **Change password** in the account menu. Admins manage all accounts
+under **Accounts**.
+
+Lost the admin password (or locked every admin out)? Start the container once
+with `RESET_ADMIN_PASSWORD=true`. The `admin` account (created again if it was
+deleted) becomes an admin with a new generated password, printed to the log
+as above. Then remove the variable, or the password is reset on every start.
+
+Each account has a password and either the **Admin** flag or a list of
+permissions. A permission targets **All apps** or one app (key
+`<platform>-<bundleId>`, e.g. `ios-com.example.app`; it can be entered before
+the app's first upload) and grants:
+
+- **Read**: see the app, install and download its versions.
+- **Push**: upload new versions of the app (`/api/upload`, CLI, browser) and
+  delete versions. An upload of an app the account can't push to is rejected
+  with `403`.
+
+Apps without read permission are hidden. Changing an account's password signs
+it out everywhere; deleting an account signs it out immediately. Install links
+already handed out stay valid until they expire (`LINK_TTL_HOURS`).
 
 ## API
 
@@ -44,7 +87,7 @@ Preparing an Expo app for this workflow: **[docs/expo-workflow.md](docs/expo-wor
 | `PUT`/`POST` | `/api/upload`                                            | Basic or session | Raw body (`curl -T file`) or multipart field `file`. Notes via `?notes=`, `X-Notes` header or form field `notes`. |
 | `GET`        | `/api/dl/<token>/manifest.plist` · `app.ipa` · `app.apk` | signed token     | Used by the install buttons. Supports `Range`.                                                                    |
 | `GET`        | `/api/device/profile`                                    | session          | UDID enrollment profile (iOS).                                                                                    |
-| `GET`        | `/api/me`                                                | Basic or session | Returns `{ "user": ... }`; used to check credentials.                                                             |
+| `GET`        | `/api/me`                                                | Basic or session | Returns `{ "user", "admin", "grants" }`; used to check credentials.                                               |
 | `GET`        | `/api/health`                                            | –                | Health check.                                                                                                     |
 
 ```sh
@@ -109,7 +152,7 @@ appdist build android --aab        # gradlew app:bundleRelease → print .aab pa
 
 ```sh
 bun install
-USERS=dev:dev bun run dev        # http://localhost:3000
+bun run dev                      # http://localhost:3000; admin password in the output
 bun --bun vp check               # format, lint, typecheck
 bun --bun run build && bun start.mjs
 ```
@@ -124,9 +167,25 @@ install flow on a deployed instance (or through a tunnel such as
 $DATA_DIR/apps/<platform>-<bundleId>/<versionId>/meta.json
 $DATA_DIR/apps/<platform>-<bundleId>/<versionId>/app.ipa|app.apk
 $DATA_DIR/tmp/                       # in-flight uploads
+$DATA_DIR/accounts.db                # accounts and permissions (SQLite)
+$DATA_DIR/accounts.snapshot.db       # consistent copy, rewritten after every change
 ```
 
-Deleting a version directory removes it from the UI. There is no database.
+Deleting a version directory removes it from the UI.
+
+### Backing up accounts
+
+A file copy of a running container's volume can catch `accounts.db` in the
+middle of a write. So after every account change the server also writes
+`accounts.snapshot.db` (SQLite `VACUUM INTO` to a temp file, then an atomic
+rename). The snapshot is always a complete database, so backing up the whole
+data volume while the container runs (e.g. the `backup.volume` label in
+`deploy/`) is enough.
+
+On startup, if `accounts.db` is missing or fails SQLite's integrity check, it
+is restored from `accounts.snapshot.db` (a corrupt file is kept as
+`accounts.db.corrupt-<timestamp>`). To restore by hand, stop the container and
+copy `accounts.snapshot.db` over `accounts.db`.
 
 ## Docker image & CI
 
@@ -155,12 +214,9 @@ data volume labeled for the `backup` tool):
 ```sh
 cd deploy
 cp .env.example .env                       # set tag, domain, SESSION_SECRET
-htpasswd -cbB users.htpasswd me 'password' # add more users with -bB (without -c)
-chmod 644 users.htpasswd                   # container runs as non-root
 docker compose up -d
+docker compose logs app-distributor        # generated admin password (first start only)
 ```
-
-Restart the container after editing `users.htpasswd`.
 
 **Traefik v3 and large uploads:** Traefik v3 closes requests whose body takes
 longer than 60 s to read. Raise the timeout on the entrypoint used for uploads,

@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getApp, getApps, getSession } from "./api";
+import { getAccounts, getApp, getApps, getSession } from "./api";
 
 export const sessionQuery = queryOptions({
   queryKey: ["session"],
@@ -10,6 +10,11 @@ export const sessionQuery = queryOptions({
 export const appsQuery = queryOptions({
   queryKey: ["apps"],
   queryFn: () => getApps(),
+});
+
+export const accountsQuery = queryOptions({
+  queryKey: ["accounts"],
+  queryFn: () => getAccounts(),
 });
 
 export const appQuery = (appKey: string) =>
