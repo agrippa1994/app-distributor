@@ -25,6 +25,7 @@ import {
 import { logout } from "#/lib/api";
 import { useClientPlatform, useDevice } from "#/lib/device";
 import { canAny } from "#/lib/permissions";
+import { unsubscribeThisBrowser } from "#/lib/push";
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: ({ context, location }) => {
@@ -48,6 +49,7 @@ function AuthedLayout() {
   const device = useDevice();
 
   const signOut = async () => {
+    await unsubscribeThisBrowser();
     await logout();
     queryClient.clear();
     await router.invalidate();
@@ -92,7 +94,7 @@ function AuthedLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/device">
-                    <SmartphoneIcon /> Device
+                    <SmartphoneIcon /> Device &amp; notifications
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

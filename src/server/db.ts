@@ -14,7 +14,7 @@ import { config } from "./config";
 //
 // On startup, a missing or corrupt accounts.db is restored from the snapshot.
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const MIGRATIONS: Record<number, string> = {
   1: `
@@ -40,6 +40,22 @@ const MIGRATIONS: Record<number, string> = {
   2: `
     -- Set for the generated admin account; cleared when its password is changed.
     ALTER TABLE accounts ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;
+  `,
+  3: `
+    -- Server-wide values, e.g. the generated VAPID key pair for Web Push.
+    CREATE TABLE settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    -- Web Push subscriptions; one per browser, owned by the account signed in there.
+    CREATE TABLE push_subscriptions (
+      endpoint   TEXT PRIMARY KEY,
+      account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      p256dh     TEXT NOT NULL,
+      auth       TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX push_subscriptions_account ON push_subscriptions(account_id);
   `,
 };
 

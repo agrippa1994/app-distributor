@@ -9,6 +9,7 @@ import { can, canAny } from "#/lib/permissions";
 import { authenticate, forbidden, unauthorized } from "./auth";
 import { config } from "./config";
 import { baseUrl } from "./links";
+import { notifyNewVersion } from "./push";
 import { ensureDirs, storeUpload, tmpDir } from "./storage";
 
 /**
@@ -83,6 +84,13 @@ export async function handleUpload(request: Request): Promise<Response> {
         }
       },
     });
+
+    if (!duplicate) {
+      // Don't make the uploader wait for the push services.
+      notifyNewVersion(version, baseUrl(request)).catch((err) =>
+        console.error("[app-distributor] sending push notifications failed:", err),
+      );
+    }
 
     return Response.json(
       {

@@ -7,6 +7,7 @@ import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { Toaster } from "#/components/ui/sonner";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { sessionQuery } from "#/lib/queries";
+import { useServiceWorker } from "#/lib/push";
 
 import appCss from "../styles.css?url";
 
@@ -27,16 +28,24 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "robots", content: "noindex, nofollow" },
       { title: "App Distributor" },
+      { name: "theme-color", content: "#e11d48" },
+      // Home Screen web app on iOS (needed for push notifications there).
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Apps" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootDocument,
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  useServiceWorker();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

@@ -26,17 +26,19 @@ Preparing an Expo app for this workflow: **[docs/expo-workflow.md](docs/expo-wor
 
 ## Configuration
 
-| Variable               | Default                      | Description                                                                                                                                            |
-| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SESSION_SECRET`       | random                       | Signs session cookies and install links. **Set it in production**, otherwise everyone is logged out and links break on restart. `openssl rand -hex 32` |
-| `PUBLIC_URL`           | from request                 | External base URL, e.g. `https://apps.example.com`. Without it the URL is derived from `X-Forwarded-Proto`/`X-Forwarded-Host`/`Host`.                  |
-| `DATA_DIR`             | `./data` (`/data` in Docker) | Where builds and metadata are stored.                                                                                                                  |
-| `KEEP_VERSIONS`        | `0`                          | Keep at most N versions per app; older ones are deleted on upload. `0` keeps everything.                                                               |
-| `MAX_UPLOAD_MB`        | `4096`                       | Maximum upload size.                                                                                                                                   |
-| `SESSION_TTL_HOURS`    | `720`                        | Login session lifetime.                                                                                                                                |
-| `LINK_TTL_HOURS`       | `24`                         | Lifetime of install/download links (the UI refreshes them automatically).                                                                              |
-| `PORT` / `HOST`        | `3000` / `0.0.0.0`           | Listen address.                                                                                                                                        |
-| `RESET_ADMIN_PASSWORD` | –                            | `true` gives the `admin` account a new generated password (printed in the log) on start. Remove it again afterwards. See below.                        |
+| Variable                                 | Default                      | Description                                                                                                                                            |
+| ---------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SESSION_SECRET`                         | random                       | Signs session cookies and install links. **Set it in production**, otherwise everyone is logged out and links break on restart. `openssl rand -hex 32` |
+| `PUBLIC_URL`                             | from request                 | External base URL, e.g. `https://apps.example.com`. Without it the URL is derived from `X-Forwarded-Proto`/`X-Forwarded-Host`/`Host`.                  |
+| `DATA_DIR`                               | `./data` (`/data` in Docker) | Where builds and metadata are stored.                                                                                                                  |
+| `KEEP_VERSIONS`                          | `0`                          | Keep at most N versions per app; older ones are deleted on upload. `0` keeps everything.                                                               |
+| `MAX_UPLOAD_MB`                          | `4096`                       | Maximum upload size.                                                                                                                                   |
+| `SESSION_TTL_HOURS`                      | `720`                        | Login session lifetime.                                                                                                                                |
+| `LINK_TTL_HOURS`                         | `24`                         | Lifetime of install/download links (the UI refreshes them automatically).                                                                              |
+| `PORT` / `HOST`                          | `3000` / `0.0.0.0`           | Listen address.                                                                                                                                        |
+| `RESET_ADMIN_PASSWORD`                   | –                            | `true` gives the `admin` account a new generated password (printed in the log) on start. Remove it again afterwards. See below.                        |
+| `VAPID_SUBJECT`                          | `PUBLIC_URL`                 | Contact for push services (`mailto:` or `https:` URL). See [Push notifications](#push-notifications).                                                  |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generated                    | Web Push key pair. Generated once and stored in `accounts.db` when unset.                                                                              |
 
 ## Accounts and permissions
 
@@ -79,6 +81,30 @@ the app's first upload) and grants:
 Apps without read permission are hidden. Changing an account's password signs
 it out everywhere; deleting an account signs it out immediately. Install links
 already handed out stay valid until they expire (`LINK_TTL_HOURS`).
+
+## Push notifications
+
+Users get a notification when a new version of an app they may **read** is
+uploaded. A duplicate upload (same binary) sends nothing. Clicking the
+notification opens the app's page.
+
+Each user turns notifications on per device, under **Device & notifications**
+in the account menu. **Send test notification** checks the setup. Signing out
+turns notifications off for that browser.
+
+- **iPhone / iPad**: needs iOS/iPadOS 16.4 or later. Push works only in the
+  Home Screen web app: in Safari tap **Share → Add to Home Screen**, then open
+  App Distributor from the Home Screen and turn notifications on there.
+- **Android, desktop Chrome/Edge/Firefox, Safari on macOS**: works in the
+  browser; installing is optional.
+- Needs HTTPS (as iOS installs do). `localhost` works for development.
+
+Messages go through the browser vendor's push service (Apple, Google, Mozilla,
+Microsoft), so no developer account or Firebase project is needed. The server
+identifies itself with a VAPID key pair, generated on first use and stored in
+`accounts.db` (so it is part of the backup). Replacing the key pair invalidates
+every subscription; users then have to turn notifications on again. Expired
+subscriptions are removed automatically.
 
 ## API
 

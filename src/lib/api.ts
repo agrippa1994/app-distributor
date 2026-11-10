@@ -20,6 +20,14 @@ import {
 } from "#/server/auth";
 import { config } from "#/server/config";
 import { baseUrl, withLinks } from "#/server/links";
+import {
+  PushError,
+  type PushSubscriptionInput,
+  sendTestNotification,
+  subscribe,
+  unsubscribe,
+  vapidKeys,
+} from "#/server/push";
 import { deleteVersion, listApps, listVersions } from "#/server/storage";
 
 /** Signed in, even if the password still has to be changed. */
@@ -168,7 +176,8 @@ async function result<T>(fn: () => Promise<T>) {
   try {
     return { ok: true as const, value: await fn() };
   } catch (err) {
-    if (err instanceof AccountError) return { ok: false as const, error: err.message };
+    if (err instanceof AccountError || err instanceof PushError)
+      return { ok: false as const, error: err.message };
     throw err;
   }
 }
@@ -214,5 +223,43 @@ export const removeAccount = createServerFn({ method: "POST" })
         throw new AccountError("You can't delete your own account");
       }
       return deleteAccount(id);
+    }),
+  );
+
+// --- Push notifications ---
+
+/** The VAPID public key browsers need to create a push subscription. */
+export const getPushKey = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => vapidKeys().publicKey);
+
+export const savePushSubscription = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: PushSubscriptionInput) => ({
+    endpoint: String(input?.endpoint ?? ""),
+    keys: { p256dh: String(input?.keys?.p256dh ?? ""), auth: String(input?.keys?.auth ?? "") },
+  }))
+  .handler(({ data, context }) =>
+    result(async () => {
+      subscribe(context.user.user, data);
+      return null;
+    }),
+  );
+
+/** Uses only a session, so it also works while the password must be changed (sign-out). */
+export const removePushSubscription = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((input: { endpoint: string }) => String(input?.endpoint ?? ""))
+  .handler(({ data: endpoint, context }) =>
+    result(async () => unsubscribe(context.user.user, endpoint)),
+  );
+
+export const sendTestPush = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { endpoint: string }) => String(input?.endpoint ?? ""))
+  .handler(({ data: endpoint, context }) =>
+    result(async () => {
+      await sendTestNotification(context.user.user, endpoint, baseUrl(getRequest()));
+      return null;
     }),
   );
