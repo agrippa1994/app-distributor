@@ -7,6 +7,8 @@ services:
       PUBLIC_URL: https://${APP_DISTRIBUTOR_DOMAIN}
       SESSION_SECRET: ${SESSION_SECRET}
       KEEP_VERSIONS: ${KEEP_VERSIONS:-0}
+      # Contact for Web Push services; defaults to PUBLIC_URL.
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - app-distributor-data:/data
     networks:

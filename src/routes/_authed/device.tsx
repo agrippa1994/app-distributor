@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SmartphoneIcon } from "lucide-react";
+import { BellIcon, SmartphoneIcon } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
@@ -7,6 +7,7 @@ import { CopyButton } from "#/components/copy-button";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
 import { saveDevice, useClientPlatform, useDevice } from "#/lib/device";
+import { usePushNotifications } from "#/lib/push";
 
 interface DeviceSearch {
   udid?: string;
@@ -113,6 +114,87 @@ function DevicePage() {
           )}
         </CardContent>
       </Card>
+
+      <NotificationsCard />
     </div>
+  );
+}
+
+function NotificationsCard() {
+  const push = usePushNotifications();
+  const act = (fn: () => Promise<void>, success?: string) => async () => {
+    try {
+      await fn();
+      if (success) toast.success(success);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BellIcon className="size-5" /> Notifications
+        </CardTitle>
+        <CardDescription>
+          Get a notification on this device when a new build of an app you have access to is
+          uploaded.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {push.state === "loading" && <p className="text-sm text-muted-foreground">Checking…</p>}
+
+        {push.state === "needs-install" && (
+          <p className="text-sm text-muted-foreground">
+            On iPhone and iPad, notifications need iOS 16.4 or later and work only in the Home
+            Screen app: tap <b>Share → Add to Home Screen</b> in Safari, open App Distributor from
+            the Home Screen, and come back to this page.
+          </p>
+        )}
+
+        {push.state === "unsupported" && (
+          <p className="text-sm text-muted-foreground">
+            This browser doesn't support push notifications.
+          </p>
+        )}
+
+        {push.state === "denied" && (
+          <p className="text-sm text-muted-foreground">
+            Notifications are blocked for this site. Allow them in the browser or system settings,
+            then reload this page.
+          </p>
+        )}
+
+        {push.state === "disabled" && (
+          <Button
+            className="w-fit"
+            disabled={push.busy}
+            onClick={act(push.enable, "Notifications enabled")}
+          >
+            Enable notifications
+          </Button>
+        )}
+
+        {push.state === "enabled" && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={push.busy}
+              onClick={act(push.test, "Test notification sent")}
+            >
+              Send test notification
+            </Button>
+            <Button
+              variant="outline"
+              disabled={push.busy}
+              onClick={act(push.disable, "Notifications turned off")}
+            >
+              Turn off
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
